@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,12 +31,18 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
-function formatPercent(value: number) {
-  if (!Number.isFinite(value)) return "0.00%";
-  return `${value.toFixed(2)}%`;
+function roundUpToNearest5(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.ceil(value / 5) * 5;
+}
+
+function formatNumberInput(value: number) {
+  if (!Number.isFinite(value)) return "";
+  return value.toFixed(2);
 }
 
 export default function Page() {
@@ -91,9 +97,8 @@ export default function Page() {
 
 function CalculadoraFinanciamientoBNH() {
   const [category, setCategory] = useState("");
-  const [basePrice, setBasePrice] = useState("");
+  const [commercialPrice, setCommercialPrice] = useState("");
   const [initialAmount, setInitialAmount] = useState("");
-  const [rate, setRate] = useState("");
   const [installments, setInstallments] = useState("");
 
   const categoryConfig =
@@ -101,55 +106,68 @@ function CalculadoraFinanciamientoBNH() {
       ? CATEGORIES[category as keyof typeof CATEGORIES]
       : null;
 
-  const numericBase = Number(basePrice);
+  const numericPrice = Number(commercialPrice);
   const numericInitial = Number(initialAmount);
-  const numericRate = Number(rate);
   const numericInstallments = Number(installments);
 
+  const minInitialAmount = useMemo(() => {
+    const safePrice = Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : 0;
+    return safePrice * MIN_INITIAL_RATE;
+  }, [numericPrice]);
+
+  useEffect(() => {
+    if (categoryConfig && Number.isFinite(numericPrice) && numericPrice > 0) {
+      setInitialAmount(formatNumberInput(minInitialAmount));
+    } else if (!commercialPrice) {
+      setInitialAmount("");
+    }
+  }, [categoryConfig, numericPrice, minInitialAmount, commercialPrice]);
+
   const calculations = useMemo(() => {
-    const safeBase = Number.isFinite(numericBase) && numericBase > 0 ? numericBase : 0;
+    const safePrice = Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : 0;
     const safeInitial =
       Number.isFinite(numericInitial) && numericInitial >= 0 ? numericInitial : 0;
-    const safeRate = Number.isFinite(numericRate) && numericRate >= 0 ? numericRate : 0;
     const safeInstallments =
       Number.isInteger(numericInstallments) && numericInstallments > 0
         ? numericInstallments
         : 0;
 
-    const minInitialAmount = safeBase * MIN_INITIAL_RATE;
-    const initialPercentage = safeBase > 0 ? (safeInitial / safeBase) * 100 : 0;
-    const ivaAmount = safeBase * IVA_RATE;
-    const financedAmount = Math.max(safeBase - safeInitial, 0);
-    const totalInterest = financedAmount * (safeRate / 100);
-    const totalToPay = financedAmount + totalInterest;
-    const monthlyPayment = safeInstallments > 0 ? totalToPay / safeInstallments : 0;
+    const appliedRate = categoryConfig ? categoryConfig.minRate / 100 : 0;
+    const ivaAmount = safePrice * IVA_RATE;
+
+    const financedAmount = Math.max(safePrice - safeInitial, 0);
+    const interestOnlyOnFinanced = financedAmount * appliedRate;
+    const totalInstallmentsBase = financedAmount + interestOnlyOnFinanced;
+
+    const rawMonthlyPayment =
+      safeInstallments > 0 ? totalInstallmentsBase / safeInstallments : 0;
+
+    const roundedMonthlyPayment = roundUpToNearest5(rawMonthlyPayment);
+
+    const totalInstallmentsToPay =
+      safeInstallments > 0 ? roundedMonthlyPayment * safeInstallments : 0;
+
+    const totalToPay = totalInstallmentsToPay + safeInitial;
 
     return {
-      minInitialAmount,
-      initialPercentage,
       ivaAmount,
-      financedAmount,
-      totalInterest,
+      roundedMonthlyPayment,
+      totalInstallmentsToPay,
       totalToPay,
-      monthlyPayment,
     };
-  }, [numericBase, numericInitial, numericRate, numericInstallments]);
+  }, [numericPrice, numericInitial, numericInstallments, categoryConfig]);
 
   const validations = useMemo(() => {
     const errors: string[] = [];
 
     if (!categoryConfig) return errors;
 
-    if (basePrice !== "" && (!Number.isFinite(numericBase) || numericBase <= 0)) {
-      errors.push("No válido: la base imponible debe ser mayor a cero.");
+    if (commercialPrice !== "" && (!Number.isFinite(numericPrice) || numericPrice <= 0)) {
+      errors.push("No válido: el precio comercial debe ser mayor a cero.");
     }
 
     if (initialAmount !== "" && (!Number.isFinite(numericInitial) || numericInitial < 0)) {
       errors.push("No válido: el monto inicial debe ser un valor numérico válido.");
-    }
-
-    if (rate !== "" && (!Number.isFinite(numericRate) || numericRate < 0)) {
-      errors.push("No válido: la tasa debe ser un valor numérico válido.");
     }
 
     if (
@@ -160,20 +178,12 @@ function CalculadoraFinanciamientoBNH() {
     }
 
     if (
-      Number.isFinite(numericBase) &&
-      numericBase > 0 &&
+      Number.isFinite(numericPrice) &&
+      numericPrice > 0 &&
       Number.isFinite(numericInitial) &&
-      numericInitial < calculations.minInitialAmount
+      numericInitial < minInitialAmount
     ) {
-      errors.push("No válido: la inicial debe ser al menos 25% de la base imponible.");
-    }
-
-    if (
-      rate !== "" &&
-      Number.isFinite(numericRate) &&
-      numericRate < categoryConfig.minRate
-    ) {
-      errors.push("No válido: la tasa es menor a la mínima permitida.");
+      errors.push("No válido: la inicial debe ser al menos 25% del precio comercial.");
     }
 
     if (
@@ -187,25 +197,21 @@ function CalculadoraFinanciamientoBNH() {
     return errors;
   }, [
     categoryConfig,
-    basePrice,
+    commercialPrice,
     initialAmount,
-    rate,
     installments,
-    numericBase,
+    numericPrice,
     numericInitial,
-    numericRate,
     numericInstallments,
-    calculations.minInitialAmount,
+    minInitialAmount,
   ]);
 
   const isValid =
     !!categoryConfig &&
-    Number.isFinite(numericBase) &&
-    numericBase > 0 &&
+    Number.isFinite(numericPrice) &&
+    numericPrice > 0 &&
     Number.isFinite(numericInitial) &&
-    numericInitial >= calculations.minInitialAmount &&
-    Number.isFinite(numericRate) &&
-    numericRate >= categoryConfig.minRate &&
+    numericInitial >= minInitialAmount &&
     Number.isInteger(numericInstallments) &&
     numericInstallments > 0 &&
     numericInstallments <= categoryConfig.maxInstallments &&
@@ -213,9 +219,8 @@ function CalculadoraFinanciamientoBNH() {
 
   const handleReset = () => {
     setCategory("");
-    setBasePrice("");
+    setCommercialPrice("");
     setInitialAmount("");
-    setRate("");
     setInstallments("");
   };
 
@@ -254,13 +259,13 @@ function CalculadoraFinanciamientoBNH() {
               </div>
 
               <div>
-                <Label>Base imponible</Label>
+                <Label>Precio comercial</Label>
                 <Input
                   type="number"
                   min="0"
                   step="0.01"
-                  value={basePrice}
-                  onChange={(e) => setBasePrice(e.target.value)}
+                  value={commercialPrice}
+                  onChange={(e) => setCommercialPrice(e.target.value)}
                   placeholder="Ej. 10000"
                 />
               </div>
@@ -276,24 +281,7 @@ function CalculadoraFinanciamientoBNH() {
                   placeholder="Ej. 2500"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Monto mínimo requerido: {formatCurrency(calculations.minInitialAmount)}
-                </p>
-              </div>
-
-              <div>
-                <Label>Tasa (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={rate}
-                  onChange={(e) => setRate(e.target.value)}
-                  placeholder="Ej. 30"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  {categoryConfig
-                    ? `Tasa mínima para ${categoryConfig.label}: ${categoryConfig.minRate}%`
-                    : "Seleccione una categoría para ver la tasa mínima"}
+                  Monto mínimo requerido: {formatCurrency(minInitialAmount)}
                 </p>
               </div>
 
@@ -340,22 +328,13 @@ function CalculadoraFinanciamientoBNH() {
               <div className="mb-4 rounded-2xl bg-black p-6 text-white">
                 <p className="text-sm text-gray-300">Cuota mensual</p>
                 <p className="text-3xl font-bold">
-                  {isValid ? formatCurrency(calculations.monthlyPayment) : "$0.00"}
+                  {isValid ? formatCurrency(calculations.roundedMonthlyPayment) : "$0.00"}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <Item label="Cantidad de cuotas" value={installments || "-"} />
-                <Item
-                  label="Monto mínimo de inicial"
-                  value={formatCurrency(calculations.minInitialAmount)}
-                />
-                <Item
-                  label="Porcentaje de inicial"
-                  value={formatPercent(calculations.initialPercentage)}
-                />
-                <Item label="Monto financiado" value={formatCurrency(calculations.financedAmount)} />
-                <Item label="Interés total" value={formatCurrency(calculations.totalInterest)} />
+                <Item label="Monto mínimo de inicial" value={formatCurrency(minInitialAmount)} />
                 <Item label="Total a pagar" value={formatCurrency(calculations.totalToPay)} />
                 <Item label="IVA (16%)" value={formatCurrency(calculations.ivaAmount)} />
               </div>
