@@ -66,17 +66,23 @@ export default function Page() {
         style={{ fontFamily: "Verdana, sans-serif" }}
       >
         <Card className="w-full max-w-md rounded-2xl">
-          <CardHeader>
-            <CardTitle>Acceso privado</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-3xl font-bold text-gray-900">
+              Acceso privado
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Ingrese la clave</Label>
+
+          <CardContent className="space-y-5 pt-2">
+            <div className="space-y-3">
+              <Label className="block text-base font-medium text-gray-800">
+                Ingrese la clave
+              </Label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Clave de acceso"
+                className="h-12"
               />
             </div>
 
@@ -86,7 +92,7 @@ export default function Page() {
               </Alert>
             )}
 
-            <Button onClick={handleLogin} className="w-full">
+            <Button onClick={handleLogin} className="h-12 w-full text-base font-semibold">
               Ingresar
             </Button>
           </CardContent>
@@ -330,9 +336,9 @@ function CalculadoraFinanciamientoBNH() {
               <CardTitle>Resultados</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4 rounded-2xl bg-black p-6 text-white">
-                <p className="text-sm text-gray-300">Cuota mensual</p>
-                <p className="text-3xl font-bold">
+              <div className="mb-4 rounded-2xl bg-black p-8 text-white shadow-lg">
+                <p className="text-base font-medium text-gray-300">Cuota mensual</p>
+                <p className="mt-2 text-5xl font-extrabold tracking-tight">
                   {isValid ? formatCurrency(calculations.roundedMonthlyPayment) : "$0.00"}
                 </p>
               </div>
