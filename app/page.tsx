@@ -44,12 +44,6 @@ function formatNumberInput(value: number) {
   return value.toFixed(2);
 }
 
-/**
- * IRR mensual usando bisección.
- * Flujos:
- *  - flujo 0 negativo
- *  - flujos restantes positivos
- */
 function calculateIRR(cashFlows: number[]): number | null {
   if (cashFlows.length < 2) return null;
 
@@ -67,7 +61,6 @@ function calculateIRR(cashFlows: number[]): number | null {
 
   if (!Number.isFinite(npvLow) || !Number.isFinite(npvHigh)) return null;
 
-  // Intentar expandir high si no hay cambio de signo
   let attempts = 0;
   while (npvLow * npvHigh > 0 && attempts < 50) {
     high *= 2;
@@ -87,7 +80,6 @@ function calculateIRR(cashFlows: number[]): number | null {
 
     if (npvLow * npvMid < 0) {
       high = mid;
-      npvHigh = npvMid;
     } else {
       low = mid;
       npvLow = npvMid;
@@ -106,11 +98,6 @@ function buildCashFlows(financedAmount: number, installments: number, monthlyPay
   return [-financedAmount, ...Array.from({ length: installments }, () => monthlyPayment)];
 }
 
-/**
- * Busca la cuota mínima que cumpla AIRR >= targetAnnualRate.
- * Primero encuentra cuota exacta aproximada y luego redondea hacia arriba al múltiplo de 5.
- * Finalmente vuelve a validar la AIRR con la cuota redondeada.
- */
 function findMinimumMonthlyPayment(params: {
   financedAmount: number;
   installments: number;
@@ -184,10 +171,7 @@ function findMinimumMonthlyPayment(params: {
 
   let finalResult = getAnnualIrrFromPayment(roundedMonthlyPayment);
 
-  while (
-    finalResult.annual !== null &&
-    finalResult.annual < targetAnnualRate
-  ) {
+  while (finalResult.annual !== null && finalResult.annual < targetAnnualRate) {
     roundedMonthlyPayment += 5;
     finalResult = getAnnualIrrFromPayment(roundedMonthlyPayment);
   }
@@ -418,9 +402,9 @@ function CalculadoraFinanciamientoBNH() {
             <CardHeader>
               <CardTitle>Datos de la operación</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <div>
-                <Label>Categoría</Label>
+                <Label className="mb-2 block">Categoría</Label>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione una categoría" />
@@ -436,7 +420,7 @@ function CalculadoraFinanciamientoBNH() {
               </div>
 
               <div>
-                <Label>Precio comercial</Label>
+                <Label className="mb-2 block">Precio comercial</Label>
                 <Input
                   type="number"
                   min="0"
@@ -448,7 +432,7 @@ function CalculadoraFinanciamientoBNH() {
               </div>
 
               <div>
-                <Label>Monto inicial</Label>
+                <Label className="mb-2 block">Monto inicial</Label>
                 <Input
                   type="number"
                   min="0"
@@ -457,13 +441,13 @@ function CalculadoraFinanciamientoBNH() {
                   onChange={(e) => setInitialAmount(e.target.value)}
                   placeholder="Ej. 2500"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-gray-500">
                   Monto mínimo requerido: {formatCurrency(minInitialAmount)}
                 </p>
               </div>
 
               <div>
-                <Label>Cantidad de cuotas</Label>
+                <Label className="mb-2 block">Cantidad de cuotas</Label>
                 <Input
                   type="number"
                   min="1"
@@ -472,7 +456,7 @@ function CalculadoraFinanciamientoBNH() {
                   onChange={(e) => setInstallments(e.target.value)}
                   placeholder="Ej. 12"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-2 text-xs text-gray-500">
                   {categoryConfig
                     ? `Máximo permitido: ${categoryConfig.maxInstallments} cuotas`
                     : "Seleccione una categoría para ver el máximo permitido"}
@@ -512,8 +496,8 @@ function CalculadoraFinanciamientoBNH() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <Item label="Cantidad de cuotas" value={installments || "-"} />
                 <Item label="Monto de inicial" value={formatCurrency(numericInitial || 0)} />
+                <Item label="IVA a pagar" value={"USD 0,00"} />
                 <Item label="Total a pagar" value={formatCurrency(calculations.totalToPay)} />
-                <Item label="Precio comercial" value={formatCurrency(numericPrice || 0)} />
               </div>
             </CardContent>
           </Card>
