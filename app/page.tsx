@@ -15,13 +15,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 const CATEGORIES = {
-  dp: { label: "Línea DP", minRate: 40, maxInstallments: 12 },
-  portatiles: { label: "Portátiles", minRate: 30, maxInstallments: 15 },
-  media: { label: "Media Gama", minRate: 30, maxInstallments: 18 },
-  alta: { label: "Alta Gama", minRate: 25, maxInstallments: 24 },
+  dp: { label: "Línea DP", minAnnualRate: 0.4, maxInstallments: 12 },
+  portatiles: { label: "Portátiles", minAnnualRate: 0.3, maxInstallments: 15 },
+  media: { label: "Media Gama", minAnnualRate: 0.3, maxInstallments: 18 },
+  alta: { label: "Alta Gama", minAnnualRate: 0.25, maxInstallments: 24 },
 };
 
-const IVA_RATE = 0.16;
 const MIN_INITIAL_RATE = 0.25;
 const ACCESS_PASSWORD = "BNH2026";
 
@@ -43,6 +42,162 @@ function roundUpToNearest5(value: number) {
 function formatNumberInput(value: number) {
   if (!Number.isFinite(value)) return "";
   return value.toFixed(2);
+}
+
+/**
+ * IRR mensual usando bisección.
+ * Flujos:
+ *  - flujo 0 negativo
+ *  - flujos restantes positivos
+ */
+function calculateIRR(cashFlows: number[]): number | null {
+  if (cashFlows.length < 2) return null;
+
+  const hasPositive = cashFlows.some((v) => v > 0);
+  const hasNegative = cashFlows.some((v) => v < 0);
+  if (!hasPositive || !hasNegative) return null;
+
+  const npv = (rate: number) =>
+    cashFlows.reduce((acc, cf, i) => acc + cf / Math.pow(1 + rate, i), 0);
+
+  let low = -0.9999;
+  let high = 10;
+  let npvLow = npv(low);
+  let npvHigh = npv(high);
+
+  if (!Number.isFinite(npvLow) || !Number.isFinite(npvHigh)) return null;
+
+  // Intentar expandir high si no hay cambio de signo
+  let attempts = 0;
+  while (npvLow * npvHigh > 0 && attempts < 50) {
+    high *= 2;
+    npvHigh = npv(high);
+    if (!Number.isFinite(npvHigh)) return null;
+    attempts++;
+  }
+
+  if (npvLow * npvHigh > 0) return null;
+
+  for (let i = 0; i < 200; i++) {
+    const mid = (low + high) / 2;
+    const npvMid = npv(mid);
+
+    if (!Number.isFinite(npvMid)) return null;
+    if (Math.abs(npvMid) < 1e-10) return mid;
+
+    if (npvLow * npvMid < 0) {
+      high = mid;
+      npvHigh = npvMid;
+    } else {
+      low = mid;
+      npvLow = npvMid;
+    }
+  }
+
+  return (low + high) / 2;
+}
+
+function monthlyIrrToAnnual(irr: number | null) {
+  if (irr === null || !Number.isFinite(irr)) return null;
+  return Math.pow(1 + irr, 12) - 1;
+}
+
+function buildCashFlows(financedAmount: number, installments: number, monthlyPayment: number) {
+  return [-financedAmount, ...Array.from({ length: installments }, () => monthlyPayment)];
+}
+
+/**
+ * Busca la cuota mínima que cumpla AIRR >= targetAnnualRate.
+ * Primero encuentra cuota exacta aproximada y luego redondea hacia arriba al múltiplo de 5.
+ * Finalmente vuelve a validar la AIRR con la cuota redondeada.
+ */
+function findMinimumMonthlyPayment(params: {
+  financedAmount: number;
+  installments: number;
+  targetAnnualRate: number;
+}) {
+  const { financedAmount, installments, targetAnnualRate } = params;
+
+  if (
+    !Number.isFinite(financedAmount) ||
+    financedAmount <= 0 ||
+    !Number.isInteger(installments) ||
+    installments <= 0
+  ) {
+    return {
+      rawMonthlyPayment: 0,
+      roundedMonthlyPayment: 0,
+      monthlyIrr: null as number | null,
+      annualIrr: null as number | null,
+    };
+  }
+
+  const getAnnualIrrFromPayment = (payment: number) => {
+    const cashFlows = buildCashFlows(financedAmount, installments, payment);
+    const irr = calculateIRR(cashFlows);
+    const annual = monthlyIrrToAnnual(irr);
+    return { irr, annual };
+  };
+
+  let low = 0;
+  let high = Math.max(financedAmount * 2, 1000);
+
+  let highResult = getAnnualIrrFromPayment(high);
+  let attempts = 0;
+
+  while (
+    (highResult.annual === null || highResult.annual < targetAnnualRate) &&
+    attempts < 100
+  ) {
+    high *= 2;
+    highResult = getAnnualIrrFromPayment(high);
+    attempts++;
+  }
+
+  if (highResult.annual === null || highResult.annual < targetAnnualRate) {
+    return {
+      rawMonthlyPayment: 0,
+      roundedMonthlyPayment: 0,
+      monthlyIrr: null,
+      annualIrr: null,
+    };
+  }
+
+  for (let i = 0; i < 200; i++) {
+    const mid = (low + high) / 2;
+    const result = getAnnualIrrFromPayment(mid);
+
+    if (result.annual === null) {
+      low = mid;
+      continue;
+    }
+
+    if (result.annual >= targetAnnualRate) {
+      high = mid;
+    } else {
+      low = mid;
+    }
+  }
+
+  const rawMonthlyPayment = high;
+  let roundedMonthlyPayment = roundUpToNearest5(rawMonthlyPayment);
+
+  let finalResult = getAnnualIrrFromPayment(roundedMonthlyPayment);
+
+  while (
+    finalResult.annual !== null &&
+    finalResult.annual < targetAnnualRate
+  ) {
+    roundedMonthlyPayment += 5;
+    finalResult = getAnnualIrrFromPayment(roundedMonthlyPayment);
+  }
+
+  return {
+    rawMonthlyPayment,
+    roundedMonthlyPayment,
+    monthlyIrr: finalResult.irr,
+    annualIrr: finalResult.annual,
+  };
 }
 
 export default function Page() {
@@ -132,39 +287,6 @@ function CalculadoraFinanciamientoBNH() {
     }
   }, [categoryConfig, numericPrice, minInitialAmount, commercialPrice]);
 
-  const calculations = useMemo(() => {
-    const safePrice = Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : 0;
-    const safeInitial =
-      Number.isFinite(numericInitial) && numericInitial >= 0 ? numericInitial : 0;
-    const safeInstallments =
-      Number.isInteger(numericInstallments) && numericInstallments > 0
-        ? numericInstallments
-        : 0;
-
-    const appliedRate = categoryConfig ? categoryConfig.minRate / 100 : 0;
-    const ivaAmount = safePrice * IVA_RATE;
-
-    const financedAmount = Math.max(safePrice - safeInitial, 0);
-    const interestOnlyOnFinanced = financedAmount * appliedRate;
-    const totalInstallmentsBase = financedAmount + interestOnlyOnFinanced;
-
-    const rawMonthlyPayment =
-      safeInstallments > 0 ? totalInstallmentsBase / safeInstallments : 0;
-
-    const roundedMonthlyPayment = roundUpToNearest5(rawMonthlyPayment);
-
-    const totalInstallmentsToPay =
-      safeInstallments > 0 ? roundedMonthlyPayment * safeInstallments : 0;
-
-    const totalToPay = totalInstallmentsToPay + safeInitial;
-
-    return {
-      ivaAmount,
-      roundedMonthlyPayment,
-      totalToPay,
-    };
-  }, [numericPrice, numericInitial, numericInstallments, categoryConfig]);
-
   const validations = useMemo(() => {
     const errors: string[] = [];
 
@@ -214,6 +336,47 @@ function CalculadoraFinanciamientoBNH() {
     minInitialAmount,
   ]);
 
+  const calculations = useMemo(() => {
+    const safePrice = Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : 0;
+    const safeInitial =
+      Number.isFinite(numericInitial) && numericInitial >= 0 ? numericInitial : 0;
+    const safeInstallments =
+      Number.isInteger(numericInstallments) && numericInstallments > 0
+        ? numericInstallments
+        : 0;
+
+    const financedAmount = Math.max(safePrice - safeInitial, 0);
+
+    if (!categoryConfig || financedAmount <= 0 || safeInstallments <= 0) {
+      return {
+        financedAmount: 0,
+        roundedMonthlyPayment: 0,
+        totalToPay: safeInitial,
+        monthlyIrr: null as number | null,
+        annualIrr: null as number | null,
+        minAnnualRate: categoryConfig ? categoryConfig.minAnnualRate : null,
+      };
+    }
+
+    const search = findMinimumMonthlyPayment({
+      financedAmount,
+      installments: safeInstallments,
+      targetAnnualRate: categoryConfig.minAnnualRate,
+    });
+
+    const totalInstallmentsToPay = search.roundedMonthlyPayment * safeInstallments;
+    const totalToPay = totalInstallmentsToPay + safeInitial;
+
+    return {
+      financedAmount,
+      roundedMonthlyPayment: search.roundedMonthlyPayment,
+      totalToPay,
+      monthlyIrr: search.monthlyIrr,
+      annualIrr: search.annualIrr,
+      minAnnualRate: categoryConfig.minAnnualRate,
+    };
+  }, [numericPrice, numericInitial, numericInstallments, categoryConfig]);
+
   const isValid =
     !!categoryConfig &&
     Number.isFinite(numericPrice) &&
@@ -223,7 +386,10 @@ function CalculadoraFinanciamientoBNH() {
     Number.isInteger(numericInstallments) &&
     numericInstallments > 0 &&
     numericInstallments <= categoryConfig.maxInstallments &&
-    validations.length === 0;
+    validations.length === 0 &&
+    calculations.roundedMonthlyPayment > 0 &&
+    calculations.annualIrr !== null &&
+    calculations.annualIrr >= categoryConfig.minAnnualRate;
 
   const handleReset = () => {
     setCategory("");
@@ -347,7 +513,7 @@ function CalculadoraFinanciamientoBNH() {
                 <Item label="Cantidad de cuotas" value={installments || "-"} />
                 <Item label="Monto de inicial" value={formatCurrency(numericInitial || 0)} />
                 <Item label="Total a pagar" value={formatCurrency(calculations.totalToPay)} />
-                <Item label="IVA (16%)" value={formatCurrency(calculations.ivaAmount)} />
+                <Item label="Precio comercial" value={formatCurrency(numericPrice || 0)} />
               </div>
             </CardContent>
           </Card>
