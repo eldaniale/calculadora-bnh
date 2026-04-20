@@ -61,7 +61,10 @@ export default function Page() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 p-6">
+      <div
+        className="flex min-h-screen items-center justify-center bg-gray-100 p-6"
+        style={{ fontFamily: "Verdana, sans-serif" }}
+      >
         <Card className="w-full max-w-md rounded-2xl">
           <CardHeader>
             <CardTitle>Acceso privado</CardTitle>
@@ -152,7 +155,6 @@ function CalculadoraFinanciamientoBNH() {
     return {
       ivaAmount,
       roundedMonthlyPayment,
-      totalInstallmentsToPay,
       totalToPay,
     };
   }, [numericPrice, numericInitial, numericInstallments, categoryConfig]);
@@ -225,7 +227,10 @@ function CalculadoraFinanciamientoBNH() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div
+      className="min-h-screen bg-gray-100 p-6"
+      style={{ fontFamily: "Verdana, sans-serif" }}
+    >
       <div className="mx-auto max-w-7xl">
         <div className="mb-6">
           <h1 className="text-3xl font-semibold text-gray-900">
@@ -334,7 +339,7 @@ function CalculadoraFinanciamientoBNH() {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <Item label="Cantidad de cuotas" value={installments || "-"} />
-                <Item label="Monto mínimo de inicial" value={formatCurrency(minInitialAmount)} />
+                <Item label="Monto de inicial" value={formatCurrency(numericInitial || 0)} />
                 <Item label="Total a pagar" value={formatCurrency(calculations.totalToPay)} />
                 <Item label="IVA (16%)" value={formatCurrency(calculations.ivaAmount)} />
               </div>
