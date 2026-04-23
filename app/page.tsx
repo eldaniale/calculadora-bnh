@@ -280,7 +280,7 @@ export default function Page() {
           <div className="mb-8 flex justify-center">
             <div className="rounded-3xl bg-white px-8 py-6 shadow-sm ring-1 ring-gray-200">
               <Image
-                src="/logo-bnh.jpg"
+                src="/logo-bnh.jpeg"
                 alt="BNH Medical"
                 width={260}
                 height={120}
@@ -545,7 +545,7 @@ function CalculadoraFinanciamientoBNH() {
           <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <Image
-                src="/logo-bnh.jpg"
+                src="/logo-bnh.jpeg"
                 alt="BNH Medical"
                 width={180}
                 height={80}
@@ -729,4 +729,4 @@ function Item({ label, value }: { label: string; value: string }) {
       <p className="mt-1 font-semibold text-gray-900">{value}</p>
     </div>
   );
-}
+} 
