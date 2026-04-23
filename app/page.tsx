@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -272,41 +273,64 @@ export default function Page() {
   if (!isAuthenticated) {
     return (
       <div
-        className="flex min-h-screen items-center justify-center bg-gray-100 p-6"
+        className="min-h-screen bg-[#f3f5f7] px-6 py-10"
         style={{ fontFamily: "Verdana, sans-serif" }}
       >
-        <Card className="w-full max-w-md rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-3xl font-bold text-gray-900">
-              Acceso privado
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="space-y-5 pt-2">
-            <div className="space-y-3">
-              <Label className="block text-base font-medium text-gray-800">
-                Ingrese la clave
-              </Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Clave de acceso"
-                className="h-12"
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-8 flex justify-center">
+            <div className="rounded-3xl bg-white px-8 py-6 shadow-sm ring-1 ring-gray-200">
+              <Image
+                src="/logo-bnh.jpg"
+                alt="BNH Medical"
+                width={260}
+                height={120}
+                className="h-auto w-[220px] md:w-[260px]"
+                priority
               />
             </div>
+          </div>
 
-            {accessError && (
-              <Alert className="border-red-200 bg-red-50">
-                <AlertDescription>{accessError}</AlertDescription>
-              </Alert>
-            )}
+          <div className="mx-auto max-w-md">
+            <Card className="rounded-3xl border-0 shadow-lg ring-1 ring-gray-200">
+              <CardHeader className="pb-2 text-center">
+                <CardTitle className="text-3xl font-bold text-gray-900">
+                  Acceso privado
+                </CardTitle>
+                <p className="mt-2 text-sm text-gray-600">
+                  Ingrese la clave para acceder a la calculadora de financiamiento
+                </p>
+              </CardHeader>
 
-            <Button onClick={handleLogin} className="h-12 w-full text-base font-semibold">
-              Ingresar
-            </Button>
-          </CardContent>
-        </Card>
+              <CardContent className="space-y-5 pt-4">
+                <div className="space-y-3">
+                  <Label className="block text-base font-medium text-gray-800">
+                    Clave de acceso
+                  </Label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Ingrese su clave"
+                    className="h-12 rounded-xl"
+                  />
+                </div>
+
+                {accessError && (
+                  <Alert className="border-red-200 bg-red-50">
+                    <AlertDescription>{accessError}</AlertDescription>
+                  </Alert>
+                )}
+
+                <Button
+                  onClick={handleLogin}
+                  className="h-12 w-full rounded-xl bg-[#0d6f91] text-base font-semibold hover:bg-[#0a607d]"
+                >
+                  Ingresar
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }
@@ -513,29 +537,50 @@ function CalculadoraFinanciamientoBNH() {
 
   return (
     <div
-      className="min-h-screen bg-gray-100 p-6"
+      className="min-h-screen bg-[#f3f5f7] px-6 py-8"
       style={{ fontFamily: "Verdana, sans-serif" }}
     >
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold text-gray-900">
-            Calculadora de Financiamiento
-          </h1>
-          <p className="text-sm text-gray-600">
-            Simulación comercial para planes de financiamiento
-          </p>
+        <div className="mb-8 rounded-3xl bg-white px-6 py-5 shadow-sm ring-1 ring-gray-200">
+          <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-4">
+              <Image
+                src="/logo-bnh.jpg"
+                alt="BNH Medical"
+                width={180}
+                height={80}
+                className="h-auto w-[150px] md:w-[180px]"
+                priority
+              />
+              <div className="hidden h-12 w-px bg-gray-200 md:block" />
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+                  Calculadora de Financiamiento
+                </h1>
+                <p className="mt-1 text-sm text-gray-600 md:text-base">
+                  Simulación comercial para planes de financiamiento
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-[#0d6f91]/10 px-4 py-2 text-sm font-medium text-[#0d6f91]">
+              BNH Medical · Herramienta interna
+            </div>
+          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="rounded-2xl">
+          <Card className="rounded-3xl border-0 shadow-sm ring-1 ring-gray-200">
             <CardHeader>
-              <CardTitle>Datos de la operación</CardTitle>
+              <CardTitle className="text-2xl text-gray-900">
+                Datos de la operación
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               <div>
                 <Label className="mb-2 block">Categoría</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Seleccione una categoría" />
                   </SelectTrigger>
                   <SelectContent>
@@ -557,6 +602,7 @@ function CalculadoraFinanciamientoBNH() {
                   value={basePrice}
                   onChange={(e) => setBasePrice(e.target.value)}
                   placeholder="Ej. 10000"
+                  className="rounded-xl"
                 />
               </div>
 
@@ -569,6 +615,7 @@ function CalculadoraFinanciamientoBNH() {
                   value={initialAmount}
                   onChange={(e) => setInitialAmount(e.target.value)}
                   placeholder="Ej. 2500"
+                  className="rounded-xl"
                 />
                 <p className="mt-2 text-xs text-gray-500">
                   Inicial requerida 25%: {formatCurrency(suggestedInitialAmount)}
@@ -581,7 +628,7 @@ function CalculadoraFinanciamientoBNH() {
                   value={ivaFinancing}
                   onValueChange={(value: PaymentMode) => setIvaFinancing(value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-xl">
                     <SelectValue placeholder="Seleccione" />
                   </SelectTrigger>
                   <SelectContent>
@@ -606,6 +653,7 @@ function CalculadoraFinanciamientoBNH() {
                   value={installments}
                   onChange={(e) => setInstallments(e.target.value)}
                   placeholder="Ej. 12"
+                  className="rounded-xl"
                 />
                 <p className="mt-2 text-xs text-gray-500">
                   {categoryConfig
@@ -626,23 +674,27 @@ function CalculadoraFinanciamientoBNH() {
                 </Alert>
               )}
 
-              <Button variant="outline" onClick={handleReset}>
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                className="rounded-xl border-gray-300"
+              >
                 Restablecer
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl">
+          <Card className="rounded-3xl border-0 shadow-sm ring-1 ring-gray-200">
             <CardHeader>
-              <CardTitle>Resultados</CardTitle>
+              <CardTitle className="text-2xl text-gray-900">Resultados</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4 rounded-2xl bg-black p-8 text-white shadow-lg">
+              <div className="mb-4 rounded-3xl bg-[#0b0b0b] p-8 text-white shadow-lg">
                 <p className="text-base font-medium text-gray-300">Cuota mensual</p>
-                <p className="mt-2 text-5xl font-extrabold tracking-tight">
+                <p className="mt-3 text-5xl font-extrabold tracking-tight md:text-6xl">
                   {isValid ? formatCurrency(calculations.roundedMonthlyPayment) : "$0.00"}
                 </p>
-                <p className="mt-3 text-sm font-medium text-gray-300">
+                <p className="mt-4 text-sm font-medium text-gray-300">
                   Total de pagos:{" "}
                   <span className="font-bold text-white">
                     {isValid ? calculations.totalDisplayedInstallments : 0}
@@ -656,7 +708,10 @@ function CalculadoraFinanciamientoBNH() {
                   value={String(isValid ? calculations.totalDisplayedInstallments : 0)}
                 />
                 <Item label="Monto de inicial" value={formatCurrency(numericInitial || 0)} />
-                <Item label="IVA a pagar en Bs" value={formatCurrency(calculations.ivaToPayField)} />
+                <Item
+                  label="IVA a pagar en Bs"
+                  value={formatCurrency(calculations.ivaToPayField)}
+                />
                 <Item label="Total a pagar" value={formatCurrency(calculations.totalToPay)} />
               </div>
             </CardContent>
@@ -669,9 +724,9 @@ function CalculadoraFinanciamientoBNH() {
 
 function Item({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-white p-4">
+    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
       <p className="text-gray-500">{label}</p>
-      <p className="mt-1 font-semibold">{value}</p>
+      <p className="mt-1 font-semibold text-gray-900">{value}</p>
     </div>
   );
 }
