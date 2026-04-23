@@ -15,13 +15,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 const CATEGORIES = {
-  dp: { label: "Línea DP", minAnnualRate: 0.4, maxInstallments: 12 },
-  portatiles: { label: "Portátiles", minAnnualRate: 0.3, maxInstallments: 15 },
-  media: { label: "Media Gama", minAnnualRate: 0.3, maxInstallments: 18 },
-  alta: { label: "Alta Gama", minAnnualRate: 0.25, maxInstallments: 24 },
-};
+  dp: { label: "Línea DP y TE Air", minAnnualRate: 0.4, maxInstallments: 12, canFinanceVAT: false },
+  mx: { label: "Línea MX", minAnnualRate: 0.3, maxInstallments: 15, canFinanceVAT: false },
+  consona: { label: "Línea Consona N", minAnnualRate: 0.3, maxInstallments: 18, canFinanceVAT: true },
+  alta: { label: "Alta Gama", minAnnualRate: 0.25, maxInstallments: 24, canFinanceVAT: true },
+} as const;
 
-const MIN_INITIAL_RATE = 0.25;
+const VAT_RATE = 0.16;
+const IGTF_RATE = 0.03;
+const MIN_INITIAL_RATE = 0.2;
+const SUGGESTED_INITIAL_RATE = 0.25;
 const ACCESS_PASSWORD = "BNH2026";
 
 function formatCurrency(value: number) {
@@ -62,7 +65,7 @@ function calculateIRR(cashFlows: number[]): number | null {
   if (!Number.isFinite(npvLow) || !Number.isFinite(npvHigh)) return null;
 
   let attempts = 0;
-  while (npvLow * npvHigh > 0 && attempts < 50) {
+  while (npvLow * npvHigh > 0 && attempts < 60) {
     high *= 2;
     npvHigh = npv(high);
     if (!Number.isFinite(npvHigh)) return null;
@@ -71,7 +74,7 @@ function calculateIRR(cashFlows: number[]): number | null {
 
   if (npvLow * npvHigh > 0) return null;
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 250; i++) {
     const mid = (low + high) / 2;
     const npvMid = npv(mid);
 
@@ -94,20 +97,40 @@ function monthlyIrrToAnnual(irr: number | null) {
   return Math.pow(1 + irr, 12) - 1;
 }
 
-function buildCashFlows(financedAmount: number, installments: number, monthlyPayment: number) {
-  return [-financedAmount, ...Array.from({ length: installments }, () => monthlyPayment)];
+type PaymentMode = "si" | "no";
+
+function buildCashFlows(params: {
+  financedBase: number;
+  installments: number;
+  monthlyPayment: number;
+  ivaFinancing: PaymentMode;
+  ivaAmount: number;
+}) {
+  const { financedBase, installments, monthlyPayment, ivaFinancing, ivaAmount } = params;
+
+  if (ivaFinancing === "si") {
+    return [
+      -financedBase,
+      ivaAmount,
+      ...Array.from({ length: installments }, () => monthlyPayment),
+    ];
+  }
+
+  return [-financedBase, ...Array.from({ length: installments }, () => monthlyPayment)];
 }
 
 function findMinimumMonthlyPayment(params: {
-  financedAmount: number;
+  financedBase: number;
   installments: number;
   targetAnnualRate: number;
+  ivaFinancing: PaymentMode;
+  ivaAmount: number;
 }) {
-  const { financedAmount, installments, targetAnnualRate } = params;
+  const { financedBase, installments, targetAnnualRate, ivaFinancing, ivaAmount } = params;
 
   if (
-    !Number.isFinite(financedAmount) ||
-    financedAmount <= 0 ||
+    !Number.isFinite(financedBase) ||
+    financedBase <= 0 ||
     !Number.isInteger(installments) ||
     installments <= 0
   ) {
@@ -120,14 +143,20 @@ function findMinimumMonthlyPayment(params: {
   }
 
   const getAnnualIrrFromPayment = (payment: number) => {
-    const cashFlows = buildCashFlows(financedAmount, installments, payment);
+    const cashFlows = buildCashFlows({
+      financedBase,
+      installments,
+      monthlyPayment: payment,
+      ivaFinancing,
+      ivaAmount,
+    });
     const irr = calculateIRR(cashFlows);
     const annual = monthlyIrrToAnnual(irr);
     return { irr, annual };
   };
 
   let low = 0;
-  let high = Math.max(financedAmount * 2, 1000);
+  let high = Math.max(financedBase * 2, 1000);
 
   let highResult = getAnnualIrrFromPayment(high);
   let attempts = 0;
@@ -150,7 +179,7 @@ function findMinimumMonthlyPayment(params: {
     };
   }
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 250; i++) {
     const mid = (low + high) / 2;
     const result = getAnnualIrrFromPayment(mid);
 
@@ -245,8 +274,9 @@ export default function Page() {
 
 function CalculadoraFinanciamientoBNH() {
   const [category, setCategory] = useState("");
-  const [commercialPrice, setCommercialPrice] = useState("");
+  const [basePrice, setBasePrice] = useState("");
   const [initialAmount, setInitialAmount] = useState("");
+  const [ivaFinancing, setIvaFinancing] = useState<PaymentMode>("no");
   const [installments, setInstallments] = useState("");
 
   const categoryConfig =
@@ -254,30 +284,66 @@ function CalculadoraFinanciamientoBNH() {
       ? CATEGORIES[category as keyof typeof CATEGORIES]
       : null;
 
-  const numericPrice = Number(commercialPrice);
+  const numericBase = Number(basePrice);
   const numericInitial = Number(initialAmount);
   const numericInstallments = Number(installments);
 
   const minInitialAmount = useMemo(() => {
-    const safePrice = Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : 0;
-    return safePrice * MIN_INITIAL_RATE;
-  }, [numericPrice]);
+    const safeBase = Number.isFinite(numericBase) && numericBase > 0 ? numericBase : 0;
+    return safeBase * MIN_INITIAL_RATE;
+  }, [numericBase]);
+
+  const suggestedInitialAmount = useMemo(() => {
+    const safeBase = Number.isFinite(numericBase) && numericBase > 0 ? numericBase : 0;
+    return safeBase * SUGGESTED_INITIAL_RATE;
+  }, [numericBase]);
+
+  const vatAmount = useMemo(() => {
+    const safeBase = Number.isFinite(numericBase) && numericBase > 0 ? numericBase : 0;
+    return safeBase * VAT_RATE;
+  }, [numericBase]);
+
+  const totalWithVat = useMemo(() => {
+    const safeBase = Number.isFinite(numericBase) && numericBase > 0 ? numericBase : 0;
+    return safeBase + vatAmount;
+  }, [numericBase, vatAmount]);
+
+  const igtfAmount = useMemo(() => {
+    return totalWithVat * IGTF_RATE;
+  }, [totalWithVat]);
+
+  const commercialPrice = useMemo(() => {
+    return totalWithVat + igtfAmount;
+  }, [totalWithVat, igtfAmount]);
 
   useEffect(() => {
-    if (categoryConfig && Number.isFinite(numericPrice) && numericPrice > 0) {
-      setInitialAmount(formatNumberInput(minInitialAmount));
-    } else if (!commercialPrice) {
+    if (!categoryConfig) {
+      setIvaFinancing("no");
+      return;
+    }
+
+    if (categoryConfig.canFinanceVAT) {
+      setIvaFinancing("si");
+    } else {
+      setIvaFinancing("no");
+    }
+  }, [categoryConfig]);
+
+  useEffect(() => {
+    if (categoryConfig && Number.isFinite(numericBase) && numericBase > 0) {
+      setInitialAmount(formatNumberInput(suggestedInitialAmount));
+    } else if (!basePrice) {
       setInitialAmount("");
     }
-  }, [categoryConfig, numericPrice, minInitialAmount, commercialPrice]);
+  }, [categoryConfig, numericBase, suggestedInitialAmount, basePrice]);
 
   const validations = useMemo(() => {
     const errors: string[] = [];
 
     if (!categoryConfig) return errors;
 
-    if (commercialPrice !== "" && (!Number.isFinite(numericPrice) || numericPrice <= 0)) {
-      errors.push("No válido: el precio comercial debe ser mayor a cero.");
+    if (basePrice !== "" && (!Number.isFinite(numericBase) || numericBase <= 0)) {
+      errors.push("No válido: la base imponible debe ser mayor a cero.");
     }
 
     if (initialAmount !== "" && (!Number.isFinite(numericInitial) || numericInitial < 0)) {
@@ -292,12 +358,12 @@ function CalculadoraFinanciamientoBNH() {
     }
 
     if (
-      Number.isFinite(numericPrice) &&
-      numericPrice > 0 &&
+      Number.isFinite(numericBase) &&
+      numericBase > 0 &&
       Number.isFinite(numericInitial) &&
       numericInitial < minInitialAmount
     ) {
-      errors.push("No válido: la inicial debe ser al menos 25% del precio comercial.");
+      errors.push("No válido: la inicial debe ser al menos 20% de la base imponible.");
     }
 
     if (
@@ -308,20 +374,25 @@ function CalculadoraFinanciamientoBNH() {
       errors.push("No válido: la cantidad de cuotas excede el máximo permitido.");
     }
 
+    if (!categoryConfig.canFinanceVAT && ivaFinancing === "si") {
+      errors.push("No válido: esta categoría no permite financiamiento de IVA.");
+    }
+
     return errors;
   }, [
     categoryConfig,
-    commercialPrice,
+    basePrice,
     initialAmount,
     installments,
-    numericPrice,
+    ivaFinancing,
+    numericBase,
     numericInitial,
     numericInstallments,
     minInitialAmount,
   ]);
 
   const calculations = useMemo(() => {
-    const safePrice = Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : 0;
+    const safeBase = Number.isFinite(numericBase) && numericBase > 0 ? numericBase : 0;
     const safeInitial =
       Number.isFinite(numericInitial) && numericInitial >= 0 ? numericInitial : 0;
     const safeInstallments =
@@ -329,42 +400,67 @@ function CalculadoraFinanciamientoBNH() {
         ? numericInstallments
         : 0;
 
-    const financedAmount = Math.max(safePrice - safeInitial, 0);
+    const safeCommercialPrice = safeBase > 0 ? commercialPrice : 0;
+    const safeVat = safeBase > 0 ? vatAmount : 0;
+    const safeIgtf = safeBase > 0 ? igtfAmount : 0;
 
-    if (!categoryConfig || financedAmount <= 0 || safeInstallments <= 0) {
+    const financedBase =
+      ivaFinancing === "si"
+        ? Math.max(safeBase + safeIgtf - safeInitial, 0)
+        : Math.max(safeCommercialPrice - safeInitial, 0);
+
+    if (!categoryConfig || financedBase <= 0 || safeInstallments <= 0) {
       return {
-        financedAmount: 0,
+        commercialPrice: safeCommercialPrice,
+        vatAmount: safeVat,
+        igtfAmount: safeIgtf,
+        financedBase: 0,
         roundedMonthlyPayment: 0,
         totalToPay: safeInitial,
+        ivaToPayField: ivaFinancing === "si" ? safeVat : 0,
         monthlyIrr: null as number | null,
         annualIrr: null as number | null,
-        minAnnualRate: categoryConfig ? categoryConfig.minAnnualRate : null,
       };
     }
 
     const search = findMinimumMonthlyPayment({
-      financedAmount,
+      financedBase,
       installments: safeInstallments,
       targetAnnualRate: categoryConfig.minAnnualRate,
+      ivaFinancing,
+      ivaAmount: safeVat,
     });
 
-    const totalInstallmentsToPay = search.roundedMonthlyPayment * safeInstallments;
-    const totalToPay = totalInstallmentsToPay + safeInitial;
+    const normalPaymentsTotal = search.roundedMonthlyPayment * safeInstallments;
+    const ivaSeparate = ivaFinancing === "si" ? safeVat : 0;
+    const totalToPay = safeInitial + ivaSeparate + normalPaymentsTotal;
 
     return {
-      financedAmount,
+      commercialPrice: safeCommercialPrice,
+      vatAmount: safeVat,
+      igtfAmount: safeIgtf,
+      financedBase,
       roundedMonthlyPayment: search.roundedMonthlyPayment,
       totalToPay,
+      ivaToPayField: ivaSeparate,
       monthlyIrr: search.monthlyIrr,
       annualIrr: search.annualIrr,
-      minAnnualRate: categoryConfig.minAnnualRate,
     };
-  }, [numericPrice, numericInitial, numericInstallments, categoryConfig]);
+  }, [
+    numericBase,
+    numericInitial,
+    numericInstallments,
+    commercialPrice,
+    vatAmount,
+    igtfAmount,
+    ivaFinancing,
+    categoryConfig,
+  ]);
 
   const isValid =
     !!categoryConfig &&
-    Number.isFinite(numericPrice) &&
-    numericPrice > 0 &&
+    Number.isFinite(numericBase) &&
+    numericBase > 0 &&
     Number.isFinite(numericInitial) &&
     numericInitial >= minInitialAmount &&
     Number.isInteger(numericInstallments) &&
@@ -377,8 +473,9 @@ function CalculadoraFinanciamientoBNH() {
 
   const handleReset = () => {
     setCategory("");
-    setCommercialPrice("");
+    setBasePrice("");
     setInitialAmount("");
+    setIvaFinancing("no");
     setInstallments("");
   };
 
@@ -420,14 +517,14 @@ function CalculadoraFinanciamientoBNH() {
               </div>
 
               <div>
-                <Label className="mb-2 block">Precio comercial</Label>
+                <Label className="mb-2 block">Base imponible</Label>
                 <Input
                   type="number"
                   min="0"
                   step="0.01"
-                  value={commercialPrice}
-                  onChange={(e) => setCommercialPrice(e.target.value)}
-                  placeholder="Ej. 10000"
+                  value={basePrice}
+                  onChange={(e) => setBasePrice(e.target.value)}
+                  placeholder="Ej. 24707.06"
                 />
               </div>
 
@@ -439,11 +536,33 @@ function CalculadoraFinanciamientoBNH() {
                   step="0.01"
                   value={initialAmount}
                   onChange={(e) => setInitialAmount(e.target.value)}
-                  placeholder="Ej. 2500"
+                  placeholder="Ej. 6200"
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Monto mínimo requerido: {formatCurrency(minInitialAmount)}
+                  Inicial requerida 25%: {formatCurrency(suggestedInitialAmount)}
                 </p>
+              </div>
+
+              <div>
+                <Label className="mb-2 block">Financiamiento de IVA</Label>
+                <Select
+                  value={ivaFinancing}
+                  onValueChange={(value: PaymentMode) => setIvaFinancing(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no">No</SelectItem>
+                    {categoryConfig?.canFinanceVAT ? (
+                      <SelectItem value="si">Sí</SelectItem>
+                    ) : (
+                      <SelectItem value="si" disabled>
+                        Sí
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -496,7 +615,7 @@ function CalculadoraFinanciamientoBNH() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <Item label="Cantidad de cuotas" value={installments || "-"} />
                 <Item label="Monto de inicial" value={formatCurrency(numericInitial || 0)} />
-                <Item label="IVA a pagar" value={"USD 0,00"} />
+                <Item label="IVA a pagar en Bs" value={formatCurrency(calculations.ivaToPayField)} />
                 <Item label="Total a pagar" value={formatCurrency(calculations.totalToPay)} />
               </div>
             </CardContent>
