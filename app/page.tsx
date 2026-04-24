@@ -26,12 +26,36 @@ const CATEGORIES = {
     label: "Línea MX",
     minAnnualRate: 0.3,
     maxInstallments: 15,
-    canFinanceVAT: false,
+    canFinanceVAT: true,
   },
-  consona: {
-    label: "Línea Consona N",
+  consonaN5: {
+    label: "Línea Consona N5",
     minAnnualRate: 0.3,
     maxInstallments: 18,
+    canFinanceVAT: true,
+  },
+  consonaN6: {
+    label: "Línea Consona N6",
+    minAnnualRate: 0.3,
+    maxInstallments: 18,
+    canFinanceVAT: true,
+  },
+  consonaN7: {
+    label: "Línea Consona N7",
+    minAnnualRate: 0.3,
+    maxInstallments: 18,
+    canFinanceVAT: true,
+  },
+  consonaN8: {
+    label: "Línea Consona N8",
+    minAnnualRate: 0.3,
+    maxInstallments: 24,
+    canFinanceVAT: true,
+  },
+  consonaN9: {
+    label: "Línea Consona N9",
+    minAnnualRate: 0.3,
+    maxInstallments: 24,
     canFinanceVAT: true,
   },
   alta: {
@@ -139,15 +163,18 @@ function buildCashFlows(params: {
 
   const flow0 = -commercialPrice + initialAmount;
 
+  // Nueva lógica:
+  // Sí = I.V.A. financiado dentro de las cuotas normales.
+  // No = I.V.A. pagado por fuera en el primer pago, pero sin sumar pagos adicionales.
   if (ivaFinancing === "si") {
-    return [
-      flow0,
-      ivaAmount,
-      ...Array.from({ length: installments }, () => monthlyPayment),
-    ];
+    return [flow0, ...Array.from({ length: installments }, () => monthlyPayment)];
   }
 
-  return [flow0, ...Array.from({ length: installments }, () => monthlyPayment)];
+  return [
+    flow0,
+    ivaAmount,
+    ...Array.from({ length: Math.max(installments - 1, 0) }, () => monthlyPayment),
+  ];
 }
 
 function findMinimumMonthlyPayment(params: {
@@ -168,12 +195,14 @@ function findMinimumMonthlyPayment(params: {
   } = params;
 
   const financedAmount = commercialPrice - initialAmount;
+  const normalPaymentCount = ivaFinancing === "si" ? installments : installments - 1;
 
   if (
     !Number.isFinite(financedAmount) ||
     financedAmount <= 0 ||
     !Number.isInteger(installments) ||
-    installments <= 0
+    installments <= 0 ||
+    normalPaymentCount <= 0
   ) {
     return {
       rawMonthlyPayment: 0,
@@ -276,60 +305,56 @@ export default function Page() {
         className="min-h-screen bg-[#f3f5f7] px-6 py-10"
         style={{ fontFamily: "Verdana, sans-serif" }}
       >
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto flex max-w-md flex-col items-center justify-center">
           <div className="mb-8 flex justify-center">
-            <div className="rounded-3xl bg-white px-8 py-6 shadow-sm ring-1 ring-gray-200">
-              <Image
-                src="/logo-bnh.jpeg"
-                alt="BNH Medical"
-                width={260}
-                height={120}
-                className="h-auto w-[220px] md:w-[260px]"
-                priority
-              />
-            </div>
+            <Image
+              src="/logo-bnh.jpg"
+              alt="BNH Medical"
+              width={360}
+              height={180}
+              className="h-auto w-[280px] md:w-[340px]"
+              priority
+            />
           </div>
 
-          <div className="mx-auto max-w-md">
-            <Card className="rounded-3xl border-0 shadow-lg ring-1 ring-gray-200">
-              <CardHeader className="pb-2 text-center">
-                <CardTitle className="text-3xl font-bold text-gray-900">
-                  Acceso privado
-                </CardTitle>
-                <p className="mt-2 text-sm text-gray-600">
-                  Ingrese la clave para acceder a la calculadora de financiamiento
-                </p>
-              </CardHeader>
+          <Card className="w-full rounded-3xl border-0 bg-white shadow-lg ring-1 ring-gray-200">
+            <CardHeader className="pb-2 text-center">
+              <CardTitle className="text-3xl font-bold text-gray-900">
+                Acceso privado
+              </CardTitle>
+              <p className="mt-2 text-sm text-gray-600">
+                Ingrese la clave para acceder a la calculadora de financiamiento
+              </p>
+            </CardHeader>
 
-              <CardContent className="space-y-5 pt-4">
-                <div className="space-y-3">
-                  <Label className="block text-base font-medium text-gray-800">
-                    Clave de acceso
-                  </Label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Ingrese su clave"
-                    className="h-12 rounded-xl"
-                  />
-                </div>
+            <CardContent className="space-y-5 pt-4">
+              <div className="space-y-3">
+                <Label className="block text-base font-medium text-gray-800">
+                  Clave de acceso
+                </Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Ingrese su clave"
+                  className="h-12 rounded-xl"
+                />
+              </div>
 
-                {accessError && (
-                  <Alert className="border-red-200 bg-red-50">
-                    <AlertDescription>{accessError}</AlertDescription>
-                  </Alert>
-                )}
+              {accessError && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertDescription>{accessError}</AlertDescription>
+                </Alert>
+              )}
 
-                <Button
-                  onClick={handleLogin}
-                  className="h-12 w-full rounded-xl bg-[#0d6f91] text-base font-semibold hover:bg-[#0a607d]"
-                >
-                  Ingresar
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+              <Button
+                onClick={handleLogin}
+                className="h-12 w-full rounded-xl bg-[#0d6f91] text-base font-semibold hover:bg-[#0a607d]"
+              >
+                Ingresar
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
@@ -441,7 +466,11 @@ function CalculadoraFinanciamientoBNH() {
     }
 
     if (!categoryConfig.canFinanceVAT && ivaFinancing === "si") {
-      errors.push("No válido: esta categoría no permite financiamiento de IVA.");
+      errors.push("No válido: esta categoría no permite financiamiento del I.V.A.");
+    }
+
+    if (ivaFinancing === "no" && Number.isInteger(numericInstallments) && numericInstallments <= 1) {
+      errors.push("No válido: si el I.V.A. no se financia, debe existir al menos una cuota posterior.");
     }
 
     return errors;
@@ -473,11 +502,9 @@ function CalculadoraFinanciamientoBNH() {
       return {
         roundedMonthlyPayment: 0,
         totalToPay: safeInitial,
-        ivaToPayField: ivaFinancing === "si" ? safeVat : 0,
+        ivaToPayField: ivaFinancing === "no" ? safeVat : 0,
         monthlyIrr: null as number | null,
         annualIrr: null as number | null,
-        totalDisplayedInstallments:
-          ivaFinancing === "si" ? safeInstallments + 1 : safeInstallments,
       };
     }
 
@@ -490,8 +517,11 @@ function CalculadoraFinanciamientoBNH() {
       ivaAmount: safeVat,
     });
 
-    const normalPaymentsTotal = search.roundedMonthlyPayment * safeInstallments;
-    const ivaSeparate = ivaFinancing === "si" ? safeVat : 0;
+    const normalPaymentCount = ivaFinancing === "si" ? safeInstallments : safeInstallments - 1;
+    const normalPaymentsTotal =
+      search.roundedMonthlyPayment * Math.max(normalPaymentCount, 0);
+
+    const ivaSeparate = ivaFinancing === "no" ? safeVat : 0;
     const totalToPay = safeInitial + ivaSeparate + normalPaymentsTotal;
 
     return {
@@ -500,8 +530,6 @@ function CalculadoraFinanciamientoBNH() {
       ivaToPayField: ivaSeparate,
       monthlyIrr: search.monthlyIrr,
       annualIrr: search.annualIrr,
-      totalDisplayedInstallments:
-        ivaFinancing === "si" ? safeInstallments + 1 : safeInstallments,
     };
   }, [
     numericBase,
@@ -537,34 +565,32 @@ function CalculadoraFinanciamientoBNH() {
 
   return (
     <div
-      className="min-h-screen bg-[#f3f5f7] px-6 py-8"
+      className="min-h-screen bg-[#f3f5f7] px-4 py-6 md:px-6 md:py-8"
       style={{ fontFamily: "Verdana, sans-serif" }}
     >
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 rounded-3xl bg-white px-6 py-5 shadow-sm ring-1 ring-gray-200">
-          <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-4">
-              <Image
-                src="/logo-bnh.jpeg"
-                alt="BNH Medical"
-                width={180}
-                height={80}
-                className="h-auto w-[150px] md:w-[180px]"
-                priority
-              />
-              <div className="hidden h-12 w-px bg-gray-200 md:block" />
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
-                  Calculadora de Financiamiento
-                </h1>
-                <p className="mt-1 text-sm text-gray-600 md:text-base">
-                  Simulación comercial para planes de financiamiento
-                </p>
-              </div>
-            </div>
+        <div className="mb-6 bg-transparent md:mb-8">
+          <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-center md:text-left">
+            <Image
+              src="/logo-bnh.jpg"
+              alt="BNH Medical"
+              width={240}
+              height={120}
+              className="h-auto w-[190px] md:w-[220px]"
+              priority
+            />
 
-            <div className="rounded-2xl bg-[#0d6f91]/10 px-4 py-2 text-sm font-medium text-[#0d6f91]">
-              BNH Medical · Herramienta interna
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
+                Calculadora de Financiamiento
+              </h1>
+              <p className="mt-2 text-sm text-gray-600 md:text-base">
+                Simulación comercial para planes de financiamiento
+              </p>
+
+              <div className="mt-4 inline-flex rounded-full bg-[#0d6f91]/10 px-4 py-2 text-sm font-medium text-[#0d6f91]">
+                BNH Medical · Herramienta interna
+              </div>
             </div>
           </div>
         </div>
@@ -618,12 +644,12 @@ function CalculadoraFinanciamientoBNH() {
                   className="rounded-xl"
                 />
                 <p className="mt-2 text-xs text-gray-500">
-                  Inicial requerida 25%: {formatCurrency(suggestedInitialAmount)}
+                  Inicial sugerida 25%: {formatCurrency(suggestedInitialAmount)}
                 </p>
               </div>
 
               <div>
-                <Label className="mb-2 block">Financiamiento de IVA</Label>
+                <Label className="mb-2 block">Financiamiento del I.V.A.</Label>
                 <Select
                   value={ivaFinancing}
                   onValueChange={(value: PaymentMode) => setIvaFinancing(value)}
@@ -697,7 +723,7 @@ function CalculadoraFinanciamientoBNH() {
                 <p className="mt-4 text-sm font-medium text-gray-300">
                   Total de pagos:{" "}
                   <span className="font-bold text-white">
-                    {isValid ? calculations.totalDisplayedInstallments : 0}
+                    {isValid ? numericInstallments : 0}
                   </span>
                 </p>
               </div>
@@ -705,11 +731,11 @@ function CalculadoraFinanciamientoBNH() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <Item
                   label="Cantidad de cuotas"
-                  value={String(isValid ? calculations.totalDisplayedInstallments : 0)}
+                  value={String(isValid ? numericInstallments : 0)}
                 />
                 <Item label="Monto de inicial" value={formatCurrency(numericInitial || 0)} />
                 <Item
-                  label="IVA a pagar en Bs"
+                  label="I.V.A. a pagar en Bs"
                   value={formatCurrency(calculations.ivaToPayField)}
                 />
                 <Item label="Total a pagar" value={formatCurrency(calculations.totalToPay)} />
@@ -729,4 +755,4 @@ function Item({ label, value }: { label: string; value: string }) {
       <p className="mt-1 font-semibold text-gray-900">{value}</p>
     </div>
   );
-} 
+}
