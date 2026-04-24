@@ -163,9 +163,6 @@ function buildCashFlows(params: {
 
   const flow0 = -commercialPrice + initialAmount;
 
-  // Nueva lógica:
-  // Sí = I.V.A. financiado dentro de las cuotas normales.
-  // No = I.V.A. pagado por fuera en el primer pago, pero sin sumar pagos adicionales.
   if (ivaFinancing === "si") {
     return [flow0, ...Array.from({ length: installments }, () => monthlyPayment)];
   }
@@ -306,7 +303,7 @@ export default function Page() {
         style={{ fontFamily: "Verdana, sans-serif" }}
       >
         <div className="mx-auto flex max-w-md flex-col items-center justify-center">
-          <div className="mb-8 flex justify-center">
+          <div className="mb-8 rounded-3xl bg-white px-8 py-6 shadow-sm ring-1 ring-gray-200">
             <Image
               src="/logo-bnh.jpeg"
               alt="BNH Medical"
@@ -571,14 +568,16 @@ function CalculadoraFinanciamientoBNH() {
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 bg-transparent md:mb-8">
           <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-center md:text-left">
-            <Image
-              src="/logo-bnh.jpeg"
-              alt="BNH Medical"
-              width={240}
-              height={120}
-              className="h-auto w-[190px] md:w-[220px]"
-              priority
-            />
+            <div className="rounded-3xl bg-white px-6 py-4 shadow-sm ring-1 ring-gray-200">
+              <Image
+                src="/logo-bnh.jpeg"
+                alt="BNH Medical"
+                width={240}
+                height={120}
+                className="h-auto w-[190px] md:w-[220px]"
+                priority
+              />
+            </div>
 
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-gray-900 md:text-4xl">
