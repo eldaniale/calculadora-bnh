@@ -28,32 +28,14 @@ const CATEGORIES = {
     maxInstallments: 15,
     canFinanceVAT: true,
   },
-  consonaN5: {
-    label: "Línea Consona N5",
+  consonaN5N7: {
+    label: "Línea Consona N5-N7",
     minAnnualRate: 0.3,
     maxInstallments: 18,
     canFinanceVAT: true,
   },
-  consonaN6: {
-    label: "Línea Consona N6",
-    minAnnualRate: 0.3,
-    maxInstallments: 18,
-    canFinanceVAT: true,
-  },
-  consonaN7: {
-    label: "Línea Consona N7",
-    minAnnualRate: 0.3,
-    maxInstallments: 18,
-    canFinanceVAT: true,
-  },
-  consonaN8: {
-    label: "Línea Consona N8",
-    minAnnualRate: 0.3,
-    maxInstallments: 24,
-    canFinanceVAT: true,
-  },
-  consonaN9: {
-    label: "Línea Consona N9",
+  consonaN8N9: {
+    label: "Línea Consona N8-N9",
     minAnnualRate: 0.3,
     maxInstallments: 24,
     canFinanceVAT: true,
@@ -163,8 +145,6 @@ function buildCashFlows(params: {
 
   const flow0 = -commercialPrice + initialAmount;
 
-  // Sí = I.V.A. financiado dentro de las cuotas normales.
-  // No = I.V.A. pagado por fuera en el primer pago + cuotas normales completas.
   if (ivaFinancing === "si") {
     return [flow0, ...Array.from({ length: installments }, () => monthlyPayment)];
   }
@@ -194,14 +174,12 @@ function findMinimumMonthlyPayment(params: {
   } = params;
 
   const financedAmount = commercialPrice - initialAmount;
-  const normalPaymentCount = installments;
 
   if (
     !Number.isFinite(financedAmount) ||
     financedAmount <= 0 ||
     !Number.isInteger(installments) ||
-    installments <= 0 ||
-    normalPaymentCount <= 0
+    installments <= 0
   ) {
     return {
       rawMonthlyPayment: 0,
