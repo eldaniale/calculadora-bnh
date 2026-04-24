@@ -163,6 +163,8 @@ function buildCashFlows(params: {
 
   const flow0 = -commercialPrice + initialAmount;
 
+  // Sí = I.V.A. financiado dentro de las cuotas normales.
+  // No = I.V.A. pagado por fuera en el primer pago + cuotas normales completas.
   if (ivaFinancing === "si") {
     return [flow0, ...Array.from({ length: installments }, () => monthlyPayment)];
   }
@@ -170,7 +172,7 @@ function buildCashFlows(params: {
   return [
     flow0,
     ivaAmount,
-    ...Array.from({ length: Math.max(installments - 1, 0) }, () => monthlyPayment),
+    ...Array.from({ length: installments }, () => monthlyPayment),
   ];
 }
 
@@ -192,7 +194,7 @@ function findMinimumMonthlyPayment(params: {
   } = params;
 
   const financedAmount = commercialPrice - initialAmount;
-  const normalPaymentCount = ivaFinancing === "si" ? installments : installments - 1;
+  const normalPaymentCount = installments;
 
   if (
     !Number.isFinite(financedAmount) ||
@@ -466,10 +468,6 @@ function CalculadoraFinanciamientoBNH() {
       errors.push("No válido: esta categoría no permite financiamiento del I.V.A.");
     }
 
-    if (ivaFinancing === "no" && Number.isInteger(numericInstallments) && numericInstallments <= 1) {
-      errors.push("No válido: si el I.V.A. no se financia, debe existir al menos una cuota posterior.");
-    }
-
     return errors;
   }, [
     categoryConfig,
@@ -514,10 +512,7 @@ function CalculadoraFinanciamientoBNH() {
       ivaAmount: safeVat,
     });
 
-    const normalPaymentCount = ivaFinancing === "si" ? safeInstallments : safeInstallments - 1;
-    const normalPaymentsTotal =
-      search.roundedMonthlyPayment * Math.max(normalPaymentCount, 0);
-
+    const normalPaymentsTotal = search.roundedMonthlyPayment * safeInstallments;
     const ivaSeparate = ivaFinancing === "no" ? safeVat : 0;
     const totalToPay = safeInitial + ivaSeparate + normalPaymentsTotal;
 
