@@ -308,7 +308,7 @@ export default function Page() {
         <div className="mx-auto flex max-w-md flex-col items-center justify-center">
           <div className="mb-8 flex justify-center">
             <Image
-              src="/logo-bnh.jpg"
+              src="/logo-bnh.jpeg"
               alt="BNH Medical"
               width={360}
               height={180}
@@ -572,7 +572,7 @@ function CalculadoraFinanciamientoBNH() {
         <div className="mb-6 bg-transparent md:mb-8">
           <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-center md:text-left">
             <Image
-              src="/logo-bnh.jpg"
+              src="/logo-bnh.jpeg"
               alt="BNH Medical"
               width={240}
               height={120}
