@@ -578,12 +578,22 @@ function CalculadoraFinanciamientoBNH() {
               <div>
                 <Label className="mb-2 block">Categoría</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="rounded-xl">
+                  <SelectTrigger
+                    className="rounded-xl"
+                    style={{ fontFamily: "Verdana, sans-serif" }}
+                  >
                     <SelectValue placeholder="Seleccione una categoría" />
                   </SelectTrigger>
-                  <SelectContent>
+
+                  <SelectContent
+                    style={{ fontFamily: "Verdana, sans-serif" }}
+                  >
                     {Object.entries(CATEGORIES).map(([key, value]) => (
-                      <SelectItem key={key} value={key}>
+                      <SelectItem
+                        key={key}
+                        value={key}
+                        style={{ fontFamily: "Verdana, sans-serif" }}
+                      >
                         {value.label}
                       </SelectItem>
                     ))}
@@ -626,15 +636,36 @@ function CalculadoraFinanciamientoBNH() {
                   value={ivaFinancing}
                   onValueChange={(value: PaymentMode) => setIvaFinancing(value)}
                 >
-                  <SelectTrigger className="rounded-xl">
+                  <SelectTrigger
+                    className="rounded-xl"
+                    style={{ fontFamily: "Verdana, sans-serif" }}
+                  >
                     <SelectValue placeholder="Seleccione" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="si">Sí</SelectItem>
+
+                  <SelectContent
+                    style={{ fontFamily: "Verdana, sans-serif" }}
+                  >
+                    <SelectItem
+                      value="si"
+                      style={{ fontFamily: "Verdana, sans-serif" }}
+                    >
+                      Sí
+                    </SelectItem>
+
                     {categoryConfig?.canPayVATSeparately ? (
-                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem
+                        value="no"
+                        style={{ fontFamily: "Verdana, sans-serif" }}
+                      >
+                        No
+                      </SelectItem>
                     ) : (
-                      <SelectItem value="no" disabled>
+                      <SelectItem
+                        value="no"
+                        disabled
+                        style={{ fontFamily: "Verdana, sans-serif" }}
+                      >
                         No
                       </SelectItem>
                     )}
