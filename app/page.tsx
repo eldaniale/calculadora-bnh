@@ -20,31 +20,31 @@ const CATEGORIES = {
     label: "Línea DP y TE Air",
     minAnnualRate: 0.4,
     maxInstallments: 12,
-    canFinanceVAT: false,
+    canPayVATSeparately: false,
   },
   mx: {
     label: "Línea MX",
     minAnnualRate: 0.3,
     maxInstallments: 15,
-    canFinanceVAT: true,
+    canPayVATSeparately: true,
   },
   consonaN5N7: {
     label: "Línea Consona N5-N7",
     minAnnualRate: 0.3,
     maxInstallments: 18,
-    canFinanceVAT: true,
+    canPayVATSeparately: true,
   },
   consonaN8N9: {
     label: "Línea Consona N8-N9",
     minAnnualRate: 0.3,
     maxInstallments: 24,
-    canFinanceVAT: true,
+    canPayVATSeparately: true,
   },
   alta: {
     label: "Alta Gama",
     minAnnualRate: 0.25,
     maxInstallments: 24,
-    canFinanceVAT: true,
+    canPayVATSeparately: true,
   },
 } as const;
 
@@ -145,6 +145,8 @@ function buildCashFlows(params: {
 
   const flow0 = -commercialPrice + initialAmount;
 
+  // Sí = I.V.A. financiado dentro de las cuotas normales.
+  // No = I.V.A. pagado por fuera en el primer pago + cuotas normales completas.
   if (ivaFinancing === "si") {
     return [flow0, ...Array.from({ length: installments }, () => monthlyPayment)];
   }
@@ -344,7 +346,7 @@ function CalculadoraFinanciamientoBNH() {
   const [category, setCategory] = useState("");
   const [basePrice, setBasePrice] = useState("");
   const [initialAmount, setInitialAmount] = useState("");
-  const [ivaFinancing, setIvaFinancing] = useState<PaymentMode>("no");
+  const [ivaFinancing, setIvaFinancing] = useState<PaymentMode>("si");
   const [installments, setInstallments] = useState("");
 
   const categoryConfig =
@@ -386,14 +388,12 @@ function CalculadoraFinanciamientoBNH() {
 
   useEffect(() => {
     if (!categoryConfig) {
-      setIvaFinancing("no");
+      setIvaFinancing("si");
       return;
     }
 
-    if (categoryConfig.canFinanceVAT) {
+    if (!categoryConfig.canPayVATSeparately) {
       setIvaFinancing("si");
-    } else {
-      setIvaFinancing("no");
     }
   }, [categoryConfig]);
 
@@ -442,8 +442,8 @@ function CalculadoraFinanciamientoBNH() {
       errors.push("No válido: la cantidad de cuotas excede el máximo permitido.");
     }
 
-    if (!categoryConfig.canFinanceVAT && ivaFinancing === "si") {
-      errors.push("No válido: esta categoría no permite financiamiento del I.V.A.");
+    if (!categoryConfig.canPayVATSeparately && ivaFinancing === "no") {
+      errors.push("No válido: esta categoría no permite pagar el I.V.A. por separado.");
     }
 
     return errors;
@@ -529,7 +529,7 @@ function CalculadoraFinanciamientoBNH() {
     setCategory("");
     setBasePrice("");
     setInitialAmount("");
-    setIvaFinancing("no");
+    setIvaFinancing("si");
     setInstallments("");
   };
 
@@ -630,12 +630,12 @@ function CalculadoraFinanciamientoBNH() {
                     <SelectValue placeholder="Seleccione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="no">No</SelectItem>
-                    {categoryConfig?.canFinanceVAT ? (
-                      <SelectItem value="si">Sí</SelectItem>
+                    <SelectItem value="si">Sí</SelectItem>
+                    {categoryConfig?.canPayVATSeparately ? (
+                      <SelectItem value="no">No</SelectItem>
                     ) : (
-                      <SelectItem value="si" disabled>
-                        Sí
+                      <SelectItem value="no" disabled>
+                        No
                       </SelectItem>
                     )}
                   </SelectContent>
