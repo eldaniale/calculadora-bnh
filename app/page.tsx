@@ -50,7 +50,7 @@ const CATEGORIES = {
   },
   alta: {
     label: "Alta Gama",
-    minAnnualRate: 0.25,
+    minAnnualRate: 0.2,
     maxInstallments: 24,
     canPayVATSeparately: true,
     minInitialRate: 0.2,
