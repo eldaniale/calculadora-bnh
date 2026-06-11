@@ -21,30 +21,58 @@ const CATEGORIES = {
     minAnnualRate: 0.4,
     maxInstallments: 12,
     canPayVATSeparately: false,
+    minInitialRate: 0.2,
+    hasCommissionNote: false,
   },
   mx: {
     label: "Línea MX",
     minAnnualRate: 0.3,
     maxInstallments: 15,
     canPayVATSeparately: true,
+    minInitialRate: 0.2,
+    hasCommissionNote: false,
   },
   consonaN5N7: {
     label: "Línea Consona N5-N7",
     minAnnualRate: 0.3,
     maxInstallments: 18,
     canPayVATSeparately: true,
+    minInitialRate: 0.2,
+    hasCommissionNote: false,
   },
   consonaN8N9: {
     label: "Línea Consona N8-N9",
     minAnnualRate: 0.3,
     maxInstallments: 24,
     canPayVATSeparately: true,
+    minInitialRate: 0.2,
+    hasCommissionNote: false,
   },
   alta: {
     label: "Alta Gama",
     minAnnualRate: 0.25,
     maxInstallments: 24,
     canPayVATSeparately: true,
+    minInitialRate: 0.2,
+    hasCommissionNote: false,
+  },
+  congresoMX: {
+    label: "Congreso MX",
+    // Spec escrito: AIRR 25%. La imagen de referencia muestra 30.26%
+    // (target 30%). Si la imagen es la referencia válida, cambiar a 0.3.
+    minAnnualRate: 0.25,
+    maxInstallments: 18,
+    canPayVATSeparately: true,
+    minInitialRate: 0.18,
+    hasCommissionNote: true,
+  },
+  congresoConsona: {
+    label: "Congreso Consona",
+    minAnnualRate: 0.2,
+    maxInstallments: 18,
+    canPayVATSeparately: true,
+    minInitialRate: 0.18,
+    hasCommissionNote: true,
   },
 } as const;
 
@@ -434,6 +462,10 @@ function CalculadoraFinanciamientoBNH() {
         ]
       : null;
 
+  const effectiveMinInitialRate =
+    categoryConfig?.minInitialRate ??
+    MIN_INITIAL_RATE;
+
   const numericBase = Number(basePrice);
 
   const numericInitial =
@@ -450,8 +482,14 @@ function CalculadoraFinanciamientoBNH() {
           ? numericBase
           : 0;
 
-      return safeBase * MIN_INITIAL_RATE;
-    }, [numericBase]);
+      return (
+        safeBase *
+        effectiveMinInitialRate
+      );
+    }, [
+      numericBase,
+      effectiveMinInitialRate,
+    ]);
 
   const suggestedInitialAmount =
     useMemo(() => {
@@ -580,7 +618,9 @@ function CalculadoraFinanciamientoBNH() {
         minInitialAmount
     ) {
       errors.push(
-        "No válido: la inicial debe ser al menos 20% de la base imponible."
+        `No válido: la inicial debe ser al menos ${Math.round(
+          effectiveMinInitialRate * 100
+        )}% de la base imponible.`
       );
     }
 
@@ -617,6 +657,7 @@ function CalculadoraFinanciamientoBNH() {
     numericInitial,
     numericInstallments,
     minInitialAmount,
+    effectiveMinInitialRate,
   ]);
 
   const calculations = useMemo(() => {
@@ -892,13 +933,48 @@ function CalculadoraFinanciamientoBNH() {
                   className="rounded-xl"
                 />
 
-                <p className="mt-2 text-xs text-gray-500">
-                  Inicial sugerida
-                  25%:{" "}
-                  {formatCurrency(
-                    suggestedInitialAmount
-                  )}
-                </p>
+                {categoryConfig?.hasCommissionNote ? (
+                  <div className="mt-2 space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-gray-700">
+                    <p>
+                      a. Inicial mínima
+                      20%:{" "}
+                      <span className="font-semibold">
+                        {formatCurrency(
+                          (Number.isFinite(
+                            numericBase
+                          ) &&
+                          numericBase >
+                            0
+                            ? numericBase
+                            : 0) *
+                            0.2
+                        )}
+                      </span>
+                    </p>
+                    <p>
+                      b. Inicial
+                      sugerida 25%:{" "}
+                      <span className="font-semibold">
+                        {formatCurrency(
+                          suggestedInitialAmount
+                        )}
+                      </span>
+                    </p>
+                    <p>
+                      c. Inicial de 18%
+                      (aplica 2% de
+                      comisión).
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-500">
+                    Inicial sugerida
+                    25%:{" "}
+                    {formatCurrency(
+                      suggestedInitialAmount
+                    )}
+                  </p>
+                )}
               </div>
 
               <div>
